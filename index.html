@@ -2,30 +2,76 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>My Sample Website</title>
-    <link rel="stylesheet" href="style.css">
+    <title>Stock Market Daily Trend</title>
+    <style>
+        body {
+            font-family: Arial;
+            background: #f4f6f8;
+            text-align: center;
+            padding: 40px;
+        }
+        .card {
+            background: white;
+            padding: 20px;
+            width: 350px;
+            margin: auto;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+        .up { color: green; }
+        .down { color: red; }
+    </style>
 </head>
 <body>
 
-<header>
-    <h1>Welcome to My Website</h1>
-    <p>This is my first hosted website</p>
-</header>
+<div class="card">
+    <h2>📊 Daily Market Trend</h2>
+    <p><strong>Stock:</strong> <span id="stock"></span></p>
+    <p><strong>Today Close:</strong> ₹<span id="today"></span></p>
+    <p><strong>Yesterday Close:</strong> ₹<span id="yesterday"></span></p>
+    <p><strong>Change:</strong> <span id="change"></span></p>
+    <h3 id="trend"></h3>
+</div>
 
-<nav>
-    <a href="#">Home</a>
-    <a href="#">About</a>
-    <a href="#">Contact</a>
-</nav>
+<script>
+const API_KEY = "MPD608D4EMSJLXQ5";
+const SYMBOL = "TCS.NSE";
 
-<section>
-    <h2>About Me</h2>
-    <p>I am learning how to build and host websites.</p>
-</section>
+const url = `https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol=${SYMBOL}&apikey=${API_KEY}`;
 
-<footer>
-    <p>© 2026 My Website</p>
-</footer>
+fetch(url)
+  .then(response => response.json())
+  .then(data => {
+      const series = data["Time Series (Daily)"];
+      const dates = Object.keys(series);
+
+      const today = parseFloat(series[dates[0]]["4. close"]);
+      const yesterday = parseFloat(series[dates[1]]["4. close"]);
+
+      const diff = today - yesterday;
+      const percent = ((diff / yesterday) * 100).toFixed(2);
+
+      document.getElementById("stock").innerText = SYMBOL;
+      document.getElementById("today").innerText = today.toFixed(2);
+      document.getElementById("yesterday").innerText = yesterday.toFixed(2);
+      document.getElementById("change").innerText =
+          `${diff.toFixed(2)} (${percent}%)`;
+
+      const trendEl = document.getElementById("trend");
+
+      if (diff > 0) {
+          trendEl.innerText = "UP TREND 📈";
+          trendEl.className = "up";
+      } else {
+          trendEl.innerText = "DOWN TREND 📉";
+          trendEl.className = "down";
+      }
+  })
+  .catch(error => {
+      console.error(error);
+      alert("Error fetching stock data");
+  });
+</script>
 
 </body>
 </html>
