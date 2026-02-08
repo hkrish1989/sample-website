@@ -1,76 +1,137 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Stock Market Daily Trend</title>
-    <style>
-        body {
-            font-family: Arial;
-            background: #f4f6f8;
-            text-align: center;
-            padding: 40px;
-        }
-        .card {
-            background: white;
-            padding: 20px;
-            width: 350px;
-            margin: auto;
-            border-radius: 10px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-        }
-        .up { color: green; }
-        .down { color: red; }
-    </style>
+<meta charset="UTF-8">
+<title>Stock Market Dashboard</title>
+
+<!-- Chart.js CDN -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+body {
+    font-family: Arial;
+    background: #f4f6f8;
+    text-align: center;
+    padding: 30px;
+}
+.card {
+    background: white;
+    padding: 20px;
+    width: 420px;
+    margin: auto;
+    border-radius: 10px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+select {
+    padding: 8px;
+    margin-bottom: 15px;
+}
+.up { color: green; }
+.down { color: red; }
+canvas {
+    margin-top: 20px;
+}
+</style>
 </head>
+
 <body>
 
 <div class="card">
-    <h2>📊 Daily Market Trend</h2>
-    <p><strong>Stock:</strong> <span id="stock"></span></p>
-    <p><strong>Today Close:</strong> ₹<span id="today"></span></p>
-    <p><strong>Yesterday Close:</strong> ₹<span id="yesterday"></span></p>
-    <p><strong>Change:</strong> <span id="change"></span></p>
+    <h2>📊 Market Trend Dashboard</h2>
+
+    <!-- DROPDOWN -->
+    <select id="symbol" onchange="loadData()">
+        <option value="TCS.NSE">TCS</option>
+        <option value="RELIANCE.BSE">Reliance</option>
+        <option value="INFY.NSE">Infosys</option>
+        <option value="^NSEI">NIFTY 50</option>
+        <option value="^BSESN">SENSEX</option>
+    </select>
+
+    <p><b>Today Close:</b> ₹<span id="today"></span></p>
+    <p><b>Yesterday Close:</b> ₹<span id="yesterday"></span></p>
+    <p><b>Change:</b> <span id="change"></span></p>
     <h3 id="trend"></h3>
+
+    <canvas id="chart" height="200"></canvas>
 </div>
 
 <script>
 const API_KEY = "MPD608D4EMSJLXQ5";
-const SYMBOL = "TCS.NSE";
+let chart;
 
-const url = `https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol=${SYMBOL}&apikey=${API_KEY}`;
+/* AUTO REFRESH ONCE DAILY */
+const lastFetch = localStorage.getItem("lastFetch");
+const todayDate = new Date().toDateString();
 
-fetch(url)
-  .then(response => response.json())
-  .then(data => {
-      const series = data["Time Series (Daily)"];
-      const dates = Object.keys(series);
+if (lastFetch !== todayDate) {
+    localStorage.setItem("lastFetch", todayDate);
+    loadData();
+} else {
+    loadData();
+}
 
-      const today = parseFloat(series[dates[0]]["4. close"]);
-      const yesterday = parseFloat(series[dates[1]]["4. close"]);
+function loadData() {
+    const symbol = document.getElementById("symbol").value;
+    const url = `https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol=${symbol}&apikey=${API_KEY}`;
 
-      const diff = today - yesterday;
-      const percent = ((diff / yesterday) * 100).toFixed(2);
+    fetch(url)
+    .then(res => res.json())
+    .then(data => {
+        const series = data["Time Series (Daily)"];
+        const dates = Object.keys(series).slice(0, 7).reverse();
 
-      document.getElementById("stock").innerText = SYMBOL;
-      document.getElementById("today").innerText = today.toFixed(2);
-      document.getElementById("yesterday").innerText = yesterday.toFixed(2);
-      document.getElementById("change").innerText =
-          `${diff.toFixed(2)} (${percent}%)`;
+        const prices = dates.map(d => parseFloat(series[d]["4. close"]));
 
-      const trendEl = document.getElementById("trend");
+        const today = prices[prices.length - 1];
+        const yesterday = prices[prices.length - 2];
 
-      if (diff > 0) {
-          trendEl.innerText = "UP TREND 📈";
-          trendEl.className = "up";
-      } else {
-          trendEl.innerText = "DOWN TREND 📉";
-          trendEl.className = "down";
-      }
-  })
-  .catch(error => {
-      console.error(error);
-      alert("Error fetching stock data");
-  });
+        const diff = today - yesterday;
+        const percent = ((diff / yesterday) * 100).toFixed(2);
+
+        document.getElementById("today").innerText = today.toFixed(2);
+        document.getElementById("yesterday").innerText = yesterday.toFixed(2);
+        document.getElementById("change").innerText =
+            `${diff.toFixed(2)} (${percent}%)`;
+
+        const trendEl = document.getElementById("trend");
+        if (diff > 0) {
+            trendEl.innerText = "UP TREND 📈";
+            trendEl.className = "up";
+        } else {
+            trendEl.innerText = "DOWN TREND 📉";
+            trendEl.className = "down";
+        }
+
+        drawChart(dates, prices);
+    })
+    .catch(err => alert("API limit reached or error"));
+}
+
+function drawChart(labels, data) {
+    const ctx = document.getElementById("chart").getContext("2d");
+
+    if (chart) chart.destroy();
+
+    chart = new Chart(ctx, {
+        type: "line",
+        data: {
+            labels: labels,
+            datasets: [{
+                label: "Closing Price",
+                data: data,
+                tension: 0.3,
+                fill: false
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: { display: false }
+            }
+        }
+    });
+}
 </script>
 
 </body>
